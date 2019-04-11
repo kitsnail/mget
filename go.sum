@@ -1,0 +1,16 @@
+github.com/kless/term v0.0.0-20161130133337-e551c64f56c0 h1:urSxQgTe6jlMLp7SBqS9kScNOFrkumkEPd5wkEqR4zo=
+github.com/kless/term v0.0.0-20161130133337-e551c64f56c0/go.mod h1:QHlPrsvQ38EZ3avQaGw+V049LEqMXGn/Q7///G4rlPw=
+github.com/lithammer/dedent v1.1.0 h1:VNzHMVCBNG1j0fh3OrsFRkVUwStdDArbgBWoPAffktY=
+github.com/lithammer/dedent v1.1.0/go.mod h1:jrXYCQtgg0nJiN+StA2KgR7w6CiQNv9Fd/Z9BP0jIOc=
+github.com/rs/zerolog v1.13.0 h1:hSNcYHyxDWycfePW7pUI8swuFkcSMPKh3E63Pokg1Hk=
+github.com/rs/zerolog v1.13.0/go.mod h1:YbFCdg8HfsridGWAh22vktObvhZbQsZXe4/zB0OKkWU=
+github.com/sethgrid/curse v0.0.0-20181231162520-d4ee583ebf0f h1:5sRN2QRb4WELQTjDA0RxH6fDHsqU8DvmSxOVQrFE5EU=
+github.com/sethgrid/curse v0.0.0-20181231162520-d4ee583ebf0f/go.mod h1:AcGQtZEPLvE/ypI3mXUA5nzST17BmzYJJy/n5HXoFTA=
+github.com/spf13/cobra v0.0.3 h1:ZlrZ4XsMRm04Fr5pSFxBgfND2EBVa1nLpiy1stUsX/8=
+github.com/spf13/cobra v0.0.3/go.mod h1:1l0Ry5zgKvJasoi3XT1TypsSe7PqH0Sj9dhYf7v3XqQ=
+github.com/spf13/pflag v1.0.3 h1:zPAT6CGy6wXeQ7NtTnaTerfKOsV6V6F8agHXFiazDkg=
+github.com/spf13/pflag v1.0.3/go.mod h1:DYY7MBk1bdzusC3SYhjObp+wFpr4gzcvqqNjLnInEg4=
+github.com/tredoe/term v0.0.0-20161130133337-e551c64f56c0 h1:62GgUset6v9/OOwgp6G9G0T85xd1tSrxuJb6B32wfC0=
+github.com/tredoe/term v0.0.0-20161130133337-e551c64f56c0/go.mod h1:KgcOI1tnP8CSXsT+9RJU/CYuGBjeJAXbhyG8ufn21jQ=
+golang.org/x/sys v0.0.0-20190318195719-6c81ef8f67ca h1:o2TLx1bGN3W+Ei0EMU5fShLupLmTOU95KvJJmfYhAzM=
+golang.org/x/sys v0.0.0-20190318195719-6c81ef8f67ca/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
