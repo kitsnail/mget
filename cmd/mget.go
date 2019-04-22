@@ -1,9 +1,7 @@
 package main
 
 import (
-	"flag"
 	"fmt"
-	"log"
 	"os"
 	"time"
 
@@ -81,24 +79,25 @@ func rootRun(cmd *cobra.Command, args []string) {
 		var err error
 		urls, err = readURLsFile(filelist)
 		if err != nil {
-			log.Fatal(err)
+			logger.Fatal().Msg(err.Error())
 		}
 	} else {
-		if flag.NArg() < 1 {
-			log.Fatalln("Please give an URL string!")
+		if len(args) < 1 {
+			logger.Fatal().Msg("Please give an URL string!")
 		}
-		urls = flag.Args()
+		urls = args
 	}
+	logger.Debug().Msgf("urls: %v", urls)
 
 	if savePath == "" {
 		var err error
 		savePath, err = os.Getwd()
 		if err != nil {
-			log.Fatal(err)
+			logger.Fatal().Msg(err.Error())
 		}
 	}
 
-	Download(urls, savePath)
+	Downloads(urls, savePath)
 }
 
 func VersionString() string {

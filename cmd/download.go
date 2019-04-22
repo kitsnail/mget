@@ -11,12 +11,14 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 const (
 	rangeSizeDefault  = int64(10485760)
 	bufferSizeDefault = int64(10240)
-	threadSizeDefault = 40
+	rangesDefault     = 40
+	workersDefault    = 10
 )
 
 func readURLsFile(file string) (urls []string, err error) {
@@ -37,25 +39,36 @@ func readURLsFile(file string) (urls []string, err error) {
 	return urls, nil
 }
 
-func Download(urls []string, dir string) {
-	var wg sync.WaitGroup
-	seamch := make(chan struct{}, 5)
+func Downloads(urls []string, dir string) {
+	pb := NewProgressBar()
 
-	for i, url := range urls {
-		savefile := dir + "/" + path.Base(url)
+	var wg sync.WaitGroup
+	mch := make(map[int]chan bool)
+
+	semaWorkers := make(chan struct{}, workersDefault)
+	for id, url := range urls {
+
 		wg.Add(1)
-		go func(ch chan struct{}, wg *sync.WaitGroup, id int, url, save string) {
-			defer wg.Done()
-			ch <- struct{}{}
-			defer func() { <-ch }()
-			fmt.Printf("[%d] download worker starting...\n", id)
-			dlr, err := NewDownloader(url, save)
-			if err != nil {
-				log.Fatal(err)
-			}
-			defer dlr.writer.Close()
-			dlr.Download()
-		}(seamch, &wg, i, url, savefile)
+		saveFile := dir + "/" + path.Base(url)
+
+		dlr, err := NewDownloader(url, saveFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer dlr.writer.Close()
+
+		go dlr.Download(semaWorkers)
+		compch := make(chan bool)
+		mch[id] = compch
+
+		go func(id int, ch chan bool, down *Downloader) {
+			pb.Add(id, down)
+			ch <- true
+		}(id, compch, dlr)
+	}
+
+	for _, ch := range mch {
+		pb.Wait(&wg, ch)
 	}
 
 	wg.Wait()
@@ -85,6 +98,7 @@ type status struct {
 }
 
 type Downloader struct {
+	capacity     int
 	ThreadSize   int
 	RangeSize    int64
 	BufferSize   int64
@@ -93,9 +107,11 @@ type Downloader struct {
 	status       *status
 	httpClient   *http.Client
 	completed    *sync.WaitGroup
-	allocChan    chan struct{}
+	semaRanges   chan struct{}
 	finished     chan bool
 	showProgress bool
+
+	nch chan int
 
 	filename string
 	url      string
@@ -109,16 +125,17 @@ func NewDownloader(url string, name string) (*Downloader, error) {
 	}
 
 	return &Downloader{
-		ThreadSize:   threadSizeDefault,
+		ThreadSize:   rangesDefault,
 		RangeSize:    rangeSizeDefault,
 		BufferSize:   bufferSizeDefault,
 		ranges:       []Rang{},
 		status:       &status{},
 		httpClient:   &http.Client{},
 		completed:    &sync.WaitGroup{},
-		allocChan:    make(chan struct{}, threadSizeDefault),
+		semaRanges:   make(chan struct{}, rangesDefault),
 		finished:     make(chan bool),
-		showProgress: progress,
+		showProgress: true,
+		nch:          make(chan int),
 
 		filename: name,
 		url:      url,
@@ -146,29 +163,15 @@ func (d *Downloader) SetThreadSize(ts int) {
 	d.ThreadSize = ts
 }
 
-func (s *status) Speed() int64 {
-	speed := s.completing - s.completed
+func (s *status) Speed(n int64) int64 {
+	speed := s.completing / n
 	s.completed = s.completing
 	return speed
 }
 
-func (d *Downloader) ProgressRun() {
-	var speed string
-	filename := path.Base(d.filename)
-	for {
-		speed = BytesToHuman(float64(d.status.Speed())) + "/s"
-		select {
-		case <-d.finished:
-			fmt.Printf("\r⇩ %s 100%% %d/%d %-15s %-13s", filename, d.totalSize, d.totalSize, speed, "[Completed]")
-			return
-		default:
-			progress := float64(d.status.completed) / float64(d.totalSize) * 100
-			fmt.Printf("\r⇩ %s %.2f%% %d/%d %-15s %-13s", filename, progress, d.status.completed, d.totalSize, speed, "[InProgess]")
-		}
-	}
-}
-
-func (d *Downloader) Download() {
+func (d *Downloader) Download(sema chan struct{}) {
+	sema <- struct{}{}
+	defer func() { <-sema }()
 	resp, err := d.httpClient.Head(d.url)
 	if err != nil {
 		log.Fatalln(err)
@@ -187,20 +190,7 @@ func (d *Downloader) Download() {
 
 	ranges := createRanges(d.totalSize, d.RangeSize)
 	d.SetRanges(ranges)
-	go d.allocate()
-	switch {
-	case d.showProgress:
-		d.ProgressRun()
-	default:
-		d.Stop()
-	}
-}
 
-func (d *Downloader) Stop() {
-	<-d.finished
-}
-
-func (d *Downloader) allocate() {
 	for i, _ := range d.ranges {
 		d.completed.Add(1)
 		go func(id int) {
@@ -216,8 +206,8 @@ func (d *Downloader) allocate() {
 
 func (d *Downloader) DownloadRange(id int) error {
 	defer d.completed.Done()
-	d.allocChan <- struct{}{}
-	defer func() { <-d.allocChan }()
+	d.semaRanges <- struct{}{}
+	defer func() { <-d.semaRanges }()
 
 	req, err := http.NewRequest("GET", d.url, nil)
 	if err != nil {
@@ -234,7 +224,6 @@ func (d *Downloader) DownloadRange(id int) error {
 
 	offset := rang.Begin
 	p := make([]byte, d.BufferSize)
-	var wlock sync.RWMutex
 	for {
 		bs, err := resp.Body.Read(p)
 		if err != nil {
@@ -248,9 +237,7 @@ func (d *Downloader) DownloadRange(id int) error {
 			return err
 		}
 		offset += int64(bs)
-		wlock.Lock()
-		d.status.completing += int64(bs)
-		wlock.Unlock()
+		atomic.AddInt64(&d.status.completing, int64(bs))
 	}
 	return nil
 }
