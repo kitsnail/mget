@@ -16,9 +16,9 @@ import (
 
 const (
 	rangeSizeDefault  = int64(10485760)
-	bufferSizeDefault = int64(10240)
+	bufferSizeDefault = int64(102400)
 	rangesDefault     = 40
-	workersDefault    = 10
+	workersDefault    = 5
 )
 
 func readURLsFile(file string) (urls []string, err error) {
