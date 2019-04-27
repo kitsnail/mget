@@ -69,10 +69,6 @@ func rootRun(cmd *cobra.Command, args []string) {
 		showVersion()
 	}
 
-	if len(args) < 1 {
-		cmd.Help()
-	}
-
 	var urls []string
 
 	if filelist != "" {
@@ -83,7 +79,8 @@ func rootRun(cmd *cobra.Command, args []string) {
 		}
 	} else {
 		if len(args) < 1 {
-			logger.Fatal().Msg("Please give an URL string!")
+			fmt.Println("Please give an URL string!")
+			cmd.Help()
 		}
 		urls = args
 	}
